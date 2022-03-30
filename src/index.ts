@@ -10,7 +10,7 @@ client.once("ready", () => {
 client.on("interactionCreate", async interaction => {
   if (interaction.isCommand()) {
     try {
-      return require(`./commands/${interaction.commandName}.js`)(client, interaction);
+      return require(`./commands/${interaction.commandName}.js`)(interaction, client);
     } catch (e) {
       console.error(e);
       return interaction.reply({ content: "Command not found.", ephemeral: true });
