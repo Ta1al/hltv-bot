@@ -13,7 +13,6 @@
 }
 */
 
-// TODO: Add match stats
 import { CommandInteraction } from "discord.js";
 import { get, set } from "../cache";
 import { FullMatchStats, HLTV } from "hltv";
