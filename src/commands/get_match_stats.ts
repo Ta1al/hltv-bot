@@ -5,44 +5,87 @@
   options: [
     {
       type: 4, // Integer
-      name: "match_id",
-      description: "The match id",
+      name: "match_stats_id",
+      description: "The match stats id (different than map ID)",
       required: true
     }
   ]
 }
 */
 
-// TODO: fix command data (replace match_id with match_stats_id)
 // TODO: Add match stats
 import { CommandInteraction } from "discord.js";
 import { get, set } from "../cache";
 import { FullMatchStats, HLTV } from "hltv";
 import { Canvas } from "canvas";
 import Table2canvas, { IColumn } from "table2canvas";
+import { PlayerStats } from "hltv/lib/endpoints/getMatchMapStats";
 
 module.exports = async (interaction: CommandInteraction) => {
   await interaction.deferReply();
-  const id = interaction.options.getInteger("match_id", true);
+  const id = interaction.options.getInteger("match_stats_id", true);
 
   let matchStats: FullMatchStats | null = get(id);
   if (!matchStats)
     matchStats = await HLTV.getMatchStats({ id })
       .then((m) => {
-        console.log(m);
-
         set(id, m, 864e5);
         return m;
       })
       .catch(() => null);
   if (!matchStats) return interaction.editReply("❌ Invalid match id");
 
-  const bfr = buffer(makeColumns(matchStats), makeData(matchStats), matchStats);
+  const bfr = buffer(
+    makeOverviewColumns(matchStats),
+    makeOverviewData(matchStats),
+    `${matchStats.team1.name} vs ${matchStats.team2.name}`
+  );
 
-  interaction.editReply({ files: [{ attachment: bfr, name: `stats.jpg` }] });
+  const team1 = buffer(
+    makeTeamColumns(),
+    makeTeamData(matchStats.playerStats.team1),
+    `${matchStats.team1.name}`
+  );
+  const team2 = buffer(
+    makeTeamColumns(),
+    makeTeamData(matchStats.playerStats.team2),
+    `${matchStats.team2.name}`
+  );
+  interaction.editReply({
+    files: [
+      { attachment: bfr, name: "overview.png" },
+      { attachment: team1, name: "team1.png" },
+      { attachment: team2, name: "team2.png" }
+    ]
+  });
 };
 
-function makeData(matchStats: FullMatchStats): any[] {
+function makeTeamData(teamStats: PlayerStats[]): any[] {
+  return teamStats.map((p) => ({
+    name: p.player.name,
+    kills: p.kills,
+    deaths: p.deaths,
+    assists: p.assists,
+    kd: p.killDeathsDifference,
+    kast: p.KAST,
+    rating: p.rating2 || p.rating1,
+    adr: p.ADR
+  }));
+}
+function makeTeamColumns(): IColumn<any>[] {
+  return [
+    { title: "Name", dataIndex: "name" },
+    { title: "Kills (HS)", dataIndex: "kills" },
+    { title: "Deaths", dataIndex: "deaths" },
+    { title: "Assists (Flashes)", dataIndex: "assists" },
+    { title: "K/D", dataIndex: "kd" },
+    { title: "KAST", dataIndex: "kast" },
+    { title: "Rating", dataIndex: "rating" },
+    { title: "ADR", dataIndex: "adr" }
+  ];
+}
+
+function makeOverviewData(matchStats: FullMatchStats): any[] {
   return [
     {
       team1firstKills: matchStats.overview.firstKills.team1,
@@ -65,7 +108,7 @@ function makeData(matchStats: FullMatchStats): any[] {
   ];
 }
 
-function makeColumns(matchStats: FullMatchStats): IColumn<any>[] {
+function makeOverviewColumns(matchStats: FullMatchStats): IColumn<any>[] {
   return [
     {
       title: "Overview",
@@ -179,13 +222,13 @@ function makeColumns(matchStats: FullMatchStats): IColumn<any>[] {
   ];
 }
 
-function buffer(columns: IColumn[], dataSource: any[], matchStats: FullMatchStats): Buffer {
+function buffer(columns: IColumn[], dataSource: any[], str: string): Buffer {
   const table = new Table2canvas({
     canvas: new Canvas(2, 2),
     columns,
     dataSource,
     bgColor: "#36393f",
-    text: `${matchStats.team1.name} vs ${matchStats.team2.name}`,
+    text: str,
     textStyle: {
       color: "#fff",
       textAlign: "center",
