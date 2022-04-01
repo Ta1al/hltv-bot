@@ -18,15 +18,16 @@ import {
   Message,
   MessageActionRow,
   MessageButton,
-  MessageComponentInteraction
+  MessageComponentInteraction,
+  Client
 } from "discord.js";
 import { FullMatch } from "hltv/lib/endpoints/getMatch";
 import { get, set } from "../cache";
 
-module.exports = async (interaction: CommandInteraction) => {
-  const i = await interaction.deferReply({ fetchReply: true });
-  const id = interaction.options.getInteger("match_id", true);
-
+module.exports = async (interaction: CommandInteraction, _client: Client, id: number, ephemeral = false) => {
+  const i = await interaction.deferReply({ fetchReply: true, ephemeral });
+  if (!id) id = interaction.options.getInteger("match_id", true);
+  
   let match: FullMatch | null = get(id);
   if (!match)
     match = await HLTV.getMatch({ id })
@@ -40,7 +41,11 @@ module.exports = async (interaction: CommandInteraction) => {
         set(id, m, m.status === "Over" ? 864e5 : life);
         return m;
       })
-      .catch(() => null);
+      .catch(e => {
+        console.log(e);
+        
+        return null;
+      });
   if (!match) return interaction.editReply("❌ Invalid match ID");
 
   const components = component(id, match);
@@ -49,7 +54,7 @@ module.exports = async (interaction: CommandInteraction) => {
 
   const msg = i as Message;
   const filter = (int: MessageComponentInteraction) => int.message.id == i.id;
-  collector(msg, filter, match);
+  collector(msg, interaction, filter, match);
 };
 
 function component(id: number, match: FullMatch) {
@@ -111,7 +116,7 @@ function component(id: number, match: FullMatch) {
       new MessageButton({
         label: "Stats",
         style: 1,
-        customId: "stats"
+        customId: `stats ${match.statsId}`
       })
     );
   }
@@ -177,102 +182,108 @@ function embed(match: FullMatch) {
 
 function collector(
   msg: Message<boolean>,
+  interaction: CommandInteraction,
   filter: (int: MessageComponentInteraction) => boolean,
   match: FullMatch | null
 ) {
-  msg.createMessageComponentCollector({ filter }).on("collect", (c) => {
-    if (c.customId == "score") {
-      return c.reply("no");
-    } else if (c.customId == "streams") {
-      const streams = match?.streams
-        .map((s, i) => {
-          if (!s.link.startsWith("http")) s.link = "https://hltv.org" + s.link;
-          return `\`${i + 1}.\` [${s.name}](${s.link})`;
-        })
-        .join("\n");
-      const embeds = [
-        {
-          title: "Streams",
-          description: streams,
-          color: 3092790
-        }
-      ];
-      return c.reply({ embeds, ephemeral: true });
-    } else if (c.customId == "highlights") {
-      const highlights = match?.highlights
-        .map((h, i) => `\`${i + 1}.\` [${h.title}](${h.link})`)
-        .join("\n");
-      const embeds = [
-        {
-          title: "Highlights",
-          description: highlights,
-          color: 3092790
-        }
-      ];
-      return c.reply({ embeds, ephemeral: true });
-    } else if (c.customId == "demos") {
-      const demos = match?.demos
-        .map((d, i) => {
-          if (!d.link.startsWith("http")) d.link = "https://hltv.org" + d.link;
-          return `\`${i + 1}.\` [${d.name}](${d.link})`;
-        })
-        .join("\n");
-      const embeds = [
-        {
-          title: "Demos",
-          description: demos,
-          color: 3092790
-        }
-      ];
-      return c.reply({ embeds, ephemeral: true });
-    } else if (c.customId == "format") {
-      return c.reply({
-        content: `**Format:** ${match?.format?.location} | ${match?.format?.type}`,
-        ephemeral: true
-      });
-    } else if (c.customId == "significance") {
-      return c.reply({ content: `**Significance:** ${match?.significance}`, ephemeral: true });
-    } else if (c.customId == "winner") {
-      return c.reply({
-        content: `**Winner:** ${match?.winnerTeam?.name} (\`${match?.winnerTeam?.id}\`)`,
-        ephemeral: true
-      });
-    } else if (c.customId == "maps") {
-      const maps = match?.maps
-        .map(
-          (m, i) =>
-            `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${
-              m.result?.team1TotalRounds || 0
-            } - ${m.result?.team2TotalRounds || 0}** ${match?.team2?.name}`
-        )
-        .join("\n");
-      const embeds = [
-        {
-          title: "Maps",
-          description: maps,
-          color: 3092790
-        }
-      ];
-      return c.reply({ embeds, ephemeral: true });
-    } else if (c.customId == "pom") {
-      const pom = match?.playerOfTheMatch;
-      if (!pom) return c.reply({ content: `No player of the match`, ephemeral: true });
-      return c.reply({
-        content: `**Player of the Match:** ${match?.playerOfTheMatch?.name} (\`${match?.playerOfTheMatch?.id}\`)`,
-        ephemeral: true
-      });
-    } else if (c.customId == "veto") {
-      const vetoes = match?.vetoes;
-      if (!vetoes?.length) return c.reply({ content: `No vetoes`, ephemeral: true });
-      const str = vetoes
-        .map((v, i) => `\`${i + 1}.\` ${v.team?.name || ""} ${v.type} *${v.map}*`)
-        .join("\n");
-      return c.reply({
-        content: `**Veto:** \n${str}`,
-        ephemeral: true
-      });
-    } else if (c.customId == "stats") {
-      return c.reply({ content: `not yet implemented`, ephemeral: true });
-    }
-  });
+  msg
+    .createMessageComponentCollector({ filter, idle: 3e4 })
+    .on("collect", (c) => {
+      if (c.customId == "score") {
+        return c.reply("no");
+      } else if (c.customId == "streams") {
+        const streams = match?.streams
+          .map((s, i) => {
+            if (!s.link.startsWith("http")) s.link = "https://hltv.org" + s.link;
+            return `\`${i + 1}.\` [${s.name}](${s.link})`;
+          })
+          .join("\n");
+        const embeds = [
+          {
+            title: "Streams",
+            description: streams,
+            color: 3092790
+          }
+        ];
+        return c.reply({ embeds, ephemeral: true });
+      } else if (c.customId == "highlights") {
+        const highlights = match?.highlights
+          .map((h, i) => `\`${i + 1}.\` [${h.title}](${h.link})`)
+          .join("\n");
+        const embeds = [
+          {
+            title: "Highlights",
+            description: highlights,
+            color: 3092790
+          }
+        ];
+        return c.reply({ embeds, ephemeral: true });
+      } else if (c.customId == "demos") {
+        const demos = match?.demos
+          .map((d, i) => {
+            if (!d.link.startsWith("http")) d.link = "https://hltv.org" + d.link;
+            return `\`${i + 1}.\` [${d.name}](${d.link})`;
+          })
+          .join("\n");
+        const embeds = [
+          {
+            title: "Demos",
+            description: demos,
+            color: 3092790
+          }
+        ];
+        return c.reply({ embeds, ephemeral: true });
+      } else if (c.customId == "format") {
+        return c.reply({
+          content: `**Format:** ${match?.format?.location} | ${match?.format?.type}`,
+          ephemeral: true
+        });
+      } else if (c.customId == "significance") {
+        return c.reply({ content: `**Significance:** ${match?.significance}`, ephemeral: true });
+      } else if (c.customId == "winner") {
+        return c.reply({
+          content: `**Winner:** ${match?.winnerTeam?.name} (\`${match?.winnerTeam?.id}\`)`,
+          ephemeral: true
+        });
+      } else if (c.customId == "maps") {
+        const maps = match?.maps
+          .map(
+            (m, i) =>
+              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${
+                m.result?.team1TotalRounds || 0
+              } - ${m.result?.team2TotalRounds || 0}** ${match?.team2?.name}`
+          )
+          .join("\n");
+        const embeds = [
+          {
+            title: "Maps",
+            description: maps,
+            color: 3092790
+          }
+        ];
+        return c.reply({ embeds, ephemeral: true });
+      } else if (c.customId == "pom") {
+        const pom = match?.playerOfTheMatch;
+        if (!pom) return c.reply({ content: `No player of the match`, ephemeral: true });
+        return c.reply({
+          content: `**Player of the Match:** ${match?.playerOfTheMatch?.name} (\`${match?.playerOfTheMatch?.id}\`)`,
+          ephemeral: true
+        });
+      } else if (c.customId == "veto") {
+        const vetoes = match?.vetoes;
+        if (!vetoes?.length) return c.reply({ content: `No vetoes`, ephemeral: true });
+        const str = vetoes
+          .map((v, i) => `\`${i + 1}.\` ${v.team?.name || ""} ${v.type} *${v.map}*`)
+          .join("\n");
+        return c.reply({
+          content: `**Veto:** \n${str}`,
+          ephemeral: true
+        });
+      } else if (c.customId.startsWith("stats")) {
+        return require("./get_match_stats")(c, null, c.customId.split(" ")[1], true);
+      }
+    })
+    .on("end", () => {
+      interaction.editReply({ content: "Timed Out", components: [] });
+    });
 }

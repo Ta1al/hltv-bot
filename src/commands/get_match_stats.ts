@@ -13,16 +13,16 @@
 }
 */
 
-import { CommandInteraction } from "discord.js";
+import { Client, CommandInteraction } from "discord.js";
 import { get, set } from "../cache";
 import { FullMatchStats, HLTV } from "hltv";
 import { Canvas } from "canvas";
 import Table2canvas, { IColumn } from "table2canvas";
 import { PlayerStats } from "hltv/lib/endpoints/getMatchMapStats";
-
-module.exports = async (interaction: CommandInteraction) => {
-  await interaction.deferReply();
-  const id = interaction.options.getInteger("match_stats_id", true);
+// TODO: Cache
+module.exports = async (interaction: CommandInteraction, _client: Client, id: number, ephemeral = false) => {
+  await interaction.deferReply({ ephemeral });
+  if(!id) id = interaction.options.getInteger("match_stats_id", true);
 
   let matchStats: FullMatchStats | null = get(id);
   if (!matchStats)
@@ -62,9 +62,9 @@ module.exports = async (interaction: CommandInteraction) => {
 function makeTeamData(teamStats: PlayerStats[]): any[] {
   return teamStats.map((p) => ({
     name: p.player.name,
-    kills: p.kills,
+    kills: `${p.kills} (${p.hsKills})`,
     deaths: p.deaths,
-    assists: p.assists,
+    assists: `${p.assists} (${p.flashAssists})`,
     kd: p.killDeathsDifference,
     kast: p.KAST,
     rating: p.rating2 || p.rating1,
