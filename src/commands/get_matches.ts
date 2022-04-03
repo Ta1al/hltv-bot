@@ -32,16 +32,25 @@ import {
   MessageComponentInteraction,
   CommandInteraction,
   MessageActionRow,
-  MessageSelectMenu
+  MessageSelectMenu,
+  Client
 } from "discord.js";
 import { get, set } from "./../cache";
 
-module.exports = async (interaction: CommandInteraction) => {
-  const i = await interaction.deferReply({ fetchReply: true });
-  const eventId = interaction.options.getInteger("event_id") || undefined;
-  const str = interaction.options.getString("filter") || undefined;
+module.exports = async (
+  interaction: CommandInteraction,
+  _client: Client,
+  eventId: number | undefined,
+  ephemeral: boolean
+) => {
+  const i = await interaction.deferReply({ fetchReply: true, ephemeral });
+  let str;
   let filter: MatchFilter | undefined;
-  if (str) filter = str === "top_tier" ? MatchFilter.TopTier : MatchFilter.LanOnly;
+  if (!ephemeral) {
+    str = interaction.options.getString("filter") || undefined;
+    if (str) filter = str === "top_tier" ? MatchFilter.TopTier : MatchFilter.LanOnly;
+    eventId = interaction.options.getInteger("event_id") || undefined;
+  }
 
   // cache
   let matches: any;
