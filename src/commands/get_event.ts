@@ -14,11 +14,22 @@
 */
 
 import { FullEvent, HLTV } from "hltv";
-import { CacheType, CommandInteraction, Message, MessageComponentInteraction } from "discord.js";
+import {
+  CacheType,
+  CommandInteraction,
+  Message,
+  MessageComponentInteraction,
+  Client
+} from "discord.js";
 import { get, set } from "../cache";
-module.exports = async (interaction: CommandInteraction) => {
-  const i = await interaction.deferReply({ fetchReply: true });
-  const id = interaction.options.getInteger("event_id", true);
+module.exports = async (
+  interaction: CommandInteraction,
+  _client: Client,
+  id: number,
+  ephemeral: boolean
+) => {
+  const i = await interaction.deferReply({ fetchReply: true, ephemeral });
+  if (!id) id = interaction.options.getInteger("event_id", true);
 
   let event: FullEvent | null = get(id);
   if (!event)
