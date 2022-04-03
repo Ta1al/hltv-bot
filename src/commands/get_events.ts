@@ -59,7 +59,6 @@ module.exports = async (interaction: CommandInteraction) => {
 
   if (!events || !events.length) return interaction.editReply("❌ No events found.");
 
-  console.log(events);
   await interaction.editReply({
     components: [
       {
