@@ -1,4 +1,4 @@
-/**
+/** Command Data
  * {
   "name": "get_streams",
   "description": "Get top streams from HLTV front page"
@@ -10,7 +10,7 @@ import { get, set } from "../cache";
 import HLTV, { FullStream } from "hltv";
 
 module.exports = async (interaction: CommandInteraction) => {
-  await interaction.deferReply({ fetchReply: true });
+  await interaction.deferReply();
 
   let streams: FullStream[] | null = get("streams");
   if (!streams)
