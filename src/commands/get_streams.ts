@@ -10,7 +10,7 @@ import { get, set } from "../cache";
 import HLTV, { FullStream } from "hltv";
 
 module.exports = async (interaction: CommandInteraction) => {
-  const i = await interaction.deferReply({ fetchReply: true });
+  await interaction.deferReply({ fetchReply: true });
 
   let streams: FullStream[] | null = get("streams");
   if (!streams)
