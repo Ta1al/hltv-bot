@@ -60,12 +60,14 @@ module.exports = async (
   if (!matches)
     matches = await HLTV.getMatches({ eventIds: eventId ? [eventId] : [], filter }).then((m) => {
       m = m.slice(0, 25);
+      if (m[0].event?.id != eventId) m = [];
       if (!eventId && !filter) set("matches", m, 6e4);
       if (eventId && !filter) set(`matches_${eventId}`, m, 6e4);
       if (filter) set(`matches_${filter}`, m, 6e4);
       return m;
     });
-
+  
+  if (!matches || !matches.length) return interaction.editReply("❌ Could not find matches");
   const row = new MessageActionRow().addComponents(
     new MessageSelectMenu({
       custom_id: "matches",
