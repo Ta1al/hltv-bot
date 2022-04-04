@@ -32,7 +32,7 @@ module.exports = async (
   if (!eventId) eventId = interaction.options.getInteger("event_id");
   let news: NewsPreview[] | null = get(eventId ? "news" : `news_${eventId}`);
   if (!news)
-    news = await HLTV.getNews()
+    news = await HLTV.getNews({ eventIds: eventId ? [eventId] : [] })
       .then((n) => {
         n = n.slice(0, 25);
         set(eventId ? "news" : `news_${eventId}`, n, 6e4);
