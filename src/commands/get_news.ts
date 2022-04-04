@@ -50,6 +50,7 @@ module.exports = async (
           {
             type: "SELECT_MENU",
             customId: "news",
+            placeholder: "Select news",
             options: news.map((n, i) => ({
               label: n.title,
               description: n.country.name,
