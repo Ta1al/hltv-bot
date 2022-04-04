@@ -79,6 +79,7 @@ function collector(
         if (!news) return;
         const index = parseInt(c.values[0]);
         c.reply({
+          ephemeral: true,
           embeds: [
             {
               title: news[index].title,
