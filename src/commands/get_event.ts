@@ -135,7 +135,7 @@ function collector(
   msg
     .createMessageComponentCollector({ filter, idle: 3e4 })
     .on("collect", async (c) => {
-      if (c.customId == "news") return await newsResponse(c, event);
+      if (c.customId == "news") return require('./get_news')(c, null, event?.id, true);
       else if (c.customId == "highlights") return await highlightsResponse(c, event);
       else if (c.customId == "teams") return teamsReponse(c, event);
       else if (c.customId == "matches") return require("./get_matches")(c, null, event?.id, true);
@@ -145,33 +145,6 @@ function collector(
       interaction.editReply({ components: [] });
     });
 }
-
-async function newsResponse(c: MessageComponentInteraction<CacheType>, event: FullEvent | null) {
-  const ni = await c.reply({
-    ephemeral: true,
-    fetchReply: true,
-    components: [
-      {
-        type: "ACTION_ROW",
-        components: [
-          {
-            type: "SELECT_MENU",
-            customId: "news_menu",
-            placeholder: "Select news",
-            options: event?.news.slice(0, 25).map((n, i) => ({
-              label: n.name.slice(0, 100),
-              value: `${i}`
-            }))
-          }
-        ]
-      }
-    ]
-  });
-  const nim = ni as Message;
-  const nifilter = (int: MessageComponentInteraction) => int.message.id === ni.id;
-  newsCollector(nim, nifilter, event);
-}
-
 async function highlightsResponse(
   c: MessageComponentInteraction<CacheType>,
   event: FullEvent | null
@@ -218,33 +191,6 @@ function teamsReponse(c: MessageComponentInteraction<CacheType>, event: FullEven
           .join("\n")}`
       }
     ]
-  });
-}
-
-function newsCollector(
-  nim: Message<boolean>,
-  nifilter: (int: MessageComponentInteraction) => boolean,
-  event: FullEvent | null
-) {
-  nim.createMessageComponentCollector({ filter: nifilter, idle: 6e4 }).on("collect", (nic) => {
-    if (nic.isSelectMenu())
-      return nic.reply({
-        ephemeral: true,
-        content: event?.news[parseInt(nic.values[0])].name,
-        components: [
-          {
-            type: "ACTION_ROW",
-            components: [
-              {
-                type: "BUTTON",
-                style: "LINK",
-                label: "Visit",
-                url: `https://hltv.org` + event?.news[parseInt(nic.values[0])].link
-              }
-            ]
-          }
-        ]
-      });
   });
 }
 
