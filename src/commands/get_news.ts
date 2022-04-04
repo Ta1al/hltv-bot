@@ -84,7 +84,7 @@ function collector(
             {
               title: news[index].title,
               description: `${news[index].comments} comments
-          **Country:** ${news[index].country.name}`,
+              **Country:** ${news[index].country.name}`,
               timestamp: news[index].date
             }
           ],
