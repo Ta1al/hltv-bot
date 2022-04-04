@@ -53,14 +53,13 @@ module.exports = async (
   }
 
   // cache
-  let matches: any;
+  let matches: MatchPreview[] | null = null;
   if (!eventId && !filter) matches = get("matches");
   if (eventId && !filter) matches = get(`matches_${eventId}`);
   if (filter) matches = get(`matches_${filter}`);
   if (!matches)
     matches = await HLTV.getMatches({ eventIds: eventId ? [eventId] : [], filter }).then((m) => {
       m = m.slice(0, 25);
-      if (m[0].event?.id != eventId) m = [];
       if (!eventId && !filter) set("matches", m, 6e4);
       if (eventId && !filter) set(`matches_${eventId}`, m, 6e4);
       if (filter) set(`matches_${filter}`, m, 6e4);
