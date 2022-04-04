@@ -67,6 +67,7 @@ module.exports = async (interaction: CommandInteraction) => {
           {
             type: "SELECT_MENU",
             customId: "events",
+            placeholder: "Select event",
             options: events.map((e) => ({
               label: e.name,
               description: e.location?.name || "",
