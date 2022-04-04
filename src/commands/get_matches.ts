@@ -58,7 +58,7 @@ module.exports = async (
   if (eventId && !filter) matches = get(`matches_${eventId}`);
   if (filter) matches = get(`matches_${filter}`);
   if (!matches)
-    matches = await HLTV.getMatches({ eventId, filter }).then((m) => {
+    matches = await HLTV.getMatches({ eventIds: eventId ? [eventId] : [], filter }).then((m) => {
       m = m.slice(0, 25);
       if (!eventId && !filter) set("matches", m, 6e4);
       if (eventId && !filter) set(`matches_${eventId}`, m, 6e4);
