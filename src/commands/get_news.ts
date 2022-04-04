@@ -83,6 +83,7 @@ function collector(
           embeds: [
             {
               title: news[index].title,
+              color: 0x2f3136,
               description: `${news[index].comments} comments
               **Country:** ${news[index].country.name}`,
               timestamp: news[index].date
