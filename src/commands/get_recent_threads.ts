@@ -30,7 +30,7 @@ module.exports = async (interaction: CommandInteraction) => {
       color: 0x2f3136,
       fields: threads.map((t) => ({
         name: `${t.title}`,
-        value: `[Link](${t.link})
+        value: `[Link](https://htlv.org/${t.link})
         ${t.replies} replies
         **Category:** ${t.category}`,
         inline: true,
