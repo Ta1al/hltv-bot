@@ -49,6 +49,7 @@ module.exports = async (
         color: 0x2f3136,
         thumbnail: { url: event.logo },
         description: `Prize Pool: ${event.prizePool}`,
+        footer: { text: "Event ID: " + event.id },
         fields: [
           {
             name: "Start - End",
@@ -135,7 +136,7 @@ function collector(
   msg
     .createMessageComponentCollector({ filter, idle: 3e4 })
     .on("collect", async (c) => {
-      if (c.customId == "news") return require('./get_news')(c, null, event?.id, true);
+      if (c.customId == "news") return require("./get_news")(c, null, event?.id, true);
       else if (c.customId == "highlights") return await highlightsResponse(c, event);
       else if (c.customId == "teams") return teamsReponse(c, event);
       else if (c.customId == "matches") return require("./get_matches")(c, null, event?.id, true);
