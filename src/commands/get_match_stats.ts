@@ -19,7 +19,7 @@ import { FullMatchStats, HLTV } from "hltv";
 import { Canvas } from "canvas";
 import Table2canvas, { IColumn } from "table2canvas";
 import { PlayerStats } from "hltv/lib/endpoints/getMatchMapStats";
-// TODO: Cache
+
 module.exports = async (interaction: CommandInteraction, _client: Client, id: number, ephemeral = false) => {
   await interaction.deferReply({ ephemeral });
   if(!id) id = interaction.options.getInteger("match_stats_id", true);
