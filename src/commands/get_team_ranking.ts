@@ -58,22 +58,23 @@ module.exports = async (interaction: CommandInteraction) => {
   if (!ranking || !ranking.length) return interaction.editReply("❌ Could not get team ranking");
 
   const embeds = [];
-  embeds.push(makeEmbed(country, ranking.slice(0, 25)));
-  if (ranking.length > 25) embeds.push(makeEmbed(country, ranking.slice(25, 50)));
+  embeds.push(makeEmbed(country, ranking.slice(0, 24)));
+  if (ranking.length > 24) embeds.push(makeEmbed(country, ranking.slice(24, 50)));
   interaction.editReply({ embeds });
 };
 
 function makeEmbed(country: string | undefined, ranking: TeamRanking[]) {
+  const change = (r: TeamRanking) => (r.change > 0 ? `[32m+${r.change}` : `[31m${r.change}`);
   return {
     title: `Top Teams`,
     color: 0x2f3136,
     footer: { text: `Country: ${country || "Global"}` },
     fields: ranking.map((r) => ({
       name: `${r.place}. ${r.team.name}`,
-      value: `Points: ${r.points} | Change: ${
-        r.change > 0 ? `+${r.change}` : r.change
-      } | [Link](https://hltv.org/team/${r.team.id}/hltv-bot)`,
-      inline: false
+      value: `[Link](https://hltv.org/team/${r.team.id}/hltv-bot)\`\`\`ansi\n[0m[35mPoints: [0m[34m${
+        r.points
+      }\n[0m[35mChange: [0m${change(r)}[0m\`\`\``,
+      inline: true
     }))
   };
 }
