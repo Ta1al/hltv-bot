@@ -32,7 +32,6 @@ module.exports = async (interaction: CommandInteraction) => {
       .catch(() => null);
 
   if (!ranking || !ranking.length) return interaction.editReply("❌ Could not get ranking");
-  console.log(ranking);
 
   const embeds = [];
   embeds.push(makeEmbed(country, ranking.slice(0, 24)));
