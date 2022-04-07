@@ -27,7 +27,7 @@ module.exports = async (
   ephemeral: boolean
 ) => {
   const i = await interaction.deferReply({ fetchReply: true, ephemeral });
-  if (!eventId) eventId = interaction.options.getInteger("event") || 0;
+  if (!eventId) eventId = interaction.options.getInteger("event_id") || 0;
 
   let results: FullMatchResult[] | null = get(eventId ? `results-${eventId}` : "results");
   if (!results)
