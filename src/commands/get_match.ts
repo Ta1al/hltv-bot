@@ -242,7 +242,8 @@ function collector(
         return c.reply({ content: `**Significance:** ${match?.significance}`, ephemeral: true });
       } else if (c.customId == "winner") {
         return c.reply({
-          content: `**Winner:** ${match?.winnerTeam?.name} (\`${match?.winnerTeam?.id}\`)`,
+          content: `**Winner:** ${match?.winnerTeam?.name} (\`${match?.winnerTeam?.id}\`)
+          ${match?.team1?.name} **${match?.score.team1} - ${match?.score.team2}** ${match?.team2?.name}`,
           ephemeral: true
         });
       } else if (c.customId == "maps") {
