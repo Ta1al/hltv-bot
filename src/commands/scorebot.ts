@@ -18,6 +18,8 @@ import { CommandInteraction, Message, TextChannel, ThreadChannel } from "discord
 import { Canvas } from "canvas";
 import Table2canvas, { IColumn } from "table2canvas";
 import { ScoreboardPlayer } from "hltv/lib/endpoints/connectToScorebot";
+import { get, set } from "../cache";
+import { FullMatch } from "hltv/lib/endpoints/getMatch";
 
 module.exports = async (interaction: CommandInteraction) => {
   await interaction.deferReply();
@@ -25,6 +27,7 @@ module.exports = async (interaction: CommandInteraction) => {
   let msg: Message | undefined;
   let thread: ThreadChannel | undefined;
   let scoreBoard: ScoreboardUpdate | null = null;
+  let match: FullMatch | null;
 
   const onConnect = async () => {
     await interaction.editReply("Connected to scoreboard");
@@ -82,9 +85,32 @@ module.exports = async (interaction: CommandInteraction) => {
   const onLogUpdate = async (data: any) =>
     sendLog(Object.keys(data.log[0])[0], data.log[0][Object.keys(data.log[0])[0]], thread);
 
-  const onScoreboardUpdate = (scoreboard: ScoreboardUpdate, done: any) => {
-    if (!scoreboard.live) {
+  const ntrvl2 = setInterval(async () => {
+    match = get(id);
+    if (!match)
+      match = await HLTV.getMatch({ id })
+        .then((m) => {
+          let life: number = 6e4;
+          if (m.date) {
+            const now = new Date();
+            const diff = m.date - now.getTime();
+            life = Math.max(diff, 6e4);
+          }
+          set(id, m, m.status === "Over" ? 864e5 : life);
+          return m;
+        })
+        .catch((e) => {
+          console.log(e);
+
+          return null;
+        });
+  }, 6e4);
+  const onScoreboardUpdate = async (scoreboard: ScoreboardUpdate, done: any) => {
+    if (match?.status == 'Over') {
       clearInterval(ntrvl);
+      clearInterval(ntrvl2);
+      await thread?.send('Match Over');
+      thread?.setArchived(true);
       return done();
     }
     scoreBoard = scoreboard;
@@ -92,17 +118,19 @@ module.exports = async (interaction: CommandInteraction) => {
 
   const onDisconnect = () => console.log("disconnected");
 
-  HLTV.connectToScorebot({ id, onScoreboardUpdate, onConnect, onDisconnect, onLogUpdate });
+  try {
+    HLTV.connectToScorebot({ id, onScoreboardUpdate, onConnect, onDisconnect, onLogUpdate });
+  } catch (e) {
+    interaction.editReply("❌ No live scoreboard");
+  }
 };
 
 async function sendLog(type: string, data: any, thread: ThreadChannel | undefined) {
   if (!thread) return;
-  function color(str: string, color: string) {
-    return `[${color == "CT" ? 34 : 33}m${str}[0m`;
-  }
-  function side(str: string) {
-    return str == "CT" ? "CT" : "T";
-  }
+  const color = (str: string, color: string) => `[${color == "CT" ? 34 : 33}m${str}[0m`;
+
+  const side = (str: string) => (str == "CT" ? "CT" : "T");
+
   switch (type) {
     case "RoundStart":
       thread.send(`Round started`);
