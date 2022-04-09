@@ -166,10 +166,10 @@ async function sendLog(type: string, data: any, thread: ThreadChannel | undefine
       break;
     case "BombPlanted":
       thread.send(
-        `Bomb planted by ${data.playerNick} (${color(data.ctPlayers, "CT")} on ${color(
+        `\`\`\`ansi\nBomb planted by ${data.playerNick} (${color(data.ctPlayers, "CT")} on ${color(
           data.tPlayers,
           "T"
-        )})`
+        )})\`\`\``
       );
       break;
     case "PlayerJoin":
