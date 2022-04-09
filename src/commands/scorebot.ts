@@ -13,8 +13,8 @@
 }
 */
 // TODO: Cache the scoreupdates
-import HLTV, { ScoreboardUpdate } from "hltv";
-import { CommandInteraction } from "discord.js";
+import HLTV, { ScoreboardUpdate, LogUpdate } from "hltv";
+import { CommandInteraction, Message, TextChannel, ThreadChannel } from "discord.js";
 import { Canvas } from "canvas";
 import Table2canvas, { IColumn } from "table2canvas";
 import { ScoreboardPlayer } from "hltv/lib/endpoints/connectToScorebot";
@@ -22,11 +22,19 @@ import { ScoreboardPlayer } from "hltv/lib/endpoints/connectToScorebot";
 module.exports = async (interaction: CommandInteraction) => {
   await interaction.deferReply();
   const id = interaction.options.getInteger("match_id", true);
-
+  let msg: Message | undefined;
+  let thread: ThreadChannel | undefined;
   let scoreBoard: ScoreboardUpdate | null = null;
 
+  const onConnect = async () => {
+    await interaction.editReply("Connected to scoreboard");
+    const channel = interaction.channel as TextChannel;
+    msg = await channel?.send(`<@!${interaction.user.id}>`);
+    if (!channel.isThread()) thread = await createThread(thread, channel, id, msg, interaction);
+  };
+
   const ntrvl = setInterval(() => {
-    if (!scoreBoard) return;
+    if (!scoreBoard || !msg) return;
     const ct = buffer(
       columns(),
       makeData(scoreBoard.CT),
@@ -37,7 +45,8 @@ module.exports = async (interaction: CommandInteraction) => {
       makeData(scoreBoard.TERRORIST),
       `T - ${scoreBoard.terroristTeamName} - ${scoreBoard.tTeamScore}`
     );
-    interaction.editReply({
+
+    msg.edit({
       embeds: [
         {
           color: scoreBoard.live ? 0x00ff00 : 0xff0000,
@@ -70,15 +79,100 @@ module.exports = async (interaction: CommandInteraction) => {
     });
   }, 2000);
 
+  const onLogUpdate = async (data: any) =>
+    sendLog(Object.keys(data.log[0])[0], data.log[0][Object.keys(data.log[0])[0]], thread);
+
   const onScoreboardUpdate = (scoreboard: ScoreboardUpdate, done: any) => {
     if (!scoreboard.live) {
       clearInterval(ntrvl);
       return done();
-    };
+    }
     scoreBoard = scoreboard;
   };
-  HLTV.connectToScorebot({ id, onScoreboardUpdate });
+
+  const onDisconnect = () => console.log("disconnected");
+
+  HLTV.connectToScorebot({ id, onScoreboardUpdate, onConnect, onDisconnect, onLogUpdate });
 };
+
+async function sendLog(type: string, data: any, thread: ThreadChannel | undefined) {
+  if (!thread) return;
+  function color(str: string, color: string) {
+    return `[${color == "CT" ? 34 : 33}m${str}[0m`;
+  }
+  function side(str: string) {
+    return str == "CT" ? "CT" : "T";
+  }
+  switch (type) {
+    case "RoundStart":
+      thread.send(`Round started`);
+      break;
+    case "RoundEnd":
+      const winner = side(data.winner);
+      thread.send(
+        `\`\`\`ansi\n${color(winner, winner)} won the round (${data.winType}) | (${color(
+          data.counterTerroristScore,
+          "CT"
+        )} - ${color(data.terroristScore, "T")})\`\`\``
+      );
+      break;
+    case "Restart":
+      thread.send(`Restarted`);
+      break;
+    case "MatchStarted":
+      thread.send(`Match started | Map: ${data.map}`);
+      break;
+    case "Kill":
+      thread.send(
+        `\`\`\`ansi\n${color(data.killerNick, data.killerSide)} killed ${color(
+          data.victimNick,
+          data.victimSide
+        )} with ${data.weapon}\`\`\``
+      );
+      break;
+    case "Suicide":
+      thread.send(`\`\`\`ansi\n${color(data.playerNick, data.side)} killed themselves.\`\`\``);
+      break;
+    case "BombDefused":
+      thread.send(`Bomb defused by ${data.playerNick}`);
+      break;
+    case "BombPlanted":
+      thread.send(
+        `Bomb planted by ${data.playerNick} (${color(data.ctPlayers, "CT")} on ${color(
+          data.tPlayers,
+          "T"
+        )})`
+      );
+      break;
+    case "PlayerJoin":
+      thread.send(`${data.playerNick} joined.`);
+      break;
+    case "PlayerQuit":
+      thread.send(`${data.playerNick} quit.`);
+      break;
+    default:
+      break;
+  }
+}
+
+async function createThread(
+  thread: ThreadChannel | undefined,
+  channel: TextChannel,
+  id: number,
+  msg: Message<boolean>,
+  interaction: CommandInteraction
+) {
+  thread = await channel.threads
+    .create({
+      name: `Scoreboard for match ${id}`,
+      startMessage: msg
+    })
+    .catch(() => {
+      channel.send(`<@!${interaction.user.id}> Missing permissions to create thread`);
+      return undefined;
+    });
+  return thread;
+}
 
 function columns(): IColumn<any>[] {
   return [
