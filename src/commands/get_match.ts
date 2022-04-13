@@ -24,10 +24,10 @@ import {
 import { FullMatch } from "hltv/lib/endpoints/getMatch";
 import { get, set } from "../cache";
 
-module.exports = async (interaction: CommandInteraction, _client: Client, id: number, ephemeral = false) => {
-  const i = await interaction.deferReply({ fetchReply: true, ephemeral });
-  if (!id) id = interaction.options.getInteger("match_id", true);
-  
+module.exports = async (interaction: CommandInteraction, _client: Client, originalInt: CommandInteraction, i: any) => {
+  if (!i) i = await interaction.deferReply({ fetchReply: true });
+  const id = interaction.isSelectMenu() ? parseInt(interaction.values[0]) : interaction.options.getInteger("match_id") || 0;
+
   let match: FullMatch | null = get(id);
   if (!match)
     match = await HLTV.getMatch({ id })
@@ -43,18 +43,20 @@ module.exports = async (interaction: CommandInteraction, _client: Client, id: nu
       })
       .catch(e => {
         console.log(e);
-        
+
         return null;
       });
   if (!match) return interaction.editReply("❌ Invalid match ID");
 
   const components = component(id, match);
   const embeds = [embed(match)];
-  await interaction.editReply({ embeds, components });
+  const res: any = { embeds, components };
+  if (interaction.isSelectMenu()) await interaction.update(res);
+  else await interaction.editReply(res);
 
   const msg = i as Message;
   const filter = (int: MessageComponentInteraction) => int.message.id == i.id;
-  collector(msg, interaction, filter, match);
+  collector(msg, interaction, filter, match, components);
 };
 
 function component(id: number, match: FullMatch) {
@@ -139,15 +141,14 @@ function embed(match: FullMatch) {
     fields: [
       {
         name: `${match.team1?.name || "?"}`,
-        value: `ID: [\`${match.team1?.id || "?"}\`](https://www.hltv.org/team/${
-          match.team1?.id
-        }/hltv-bot)
+        value: `ID: [\`${match.team1?.id || "?"}\`](https://www.hltv.org/team/${match.team1?.id
+          }/hltv-bot)
             ${match.players.team1
-              ?.map(
-                (p) =>
-                  `[${p.name}](https://www.hltv.org/players/${p.id}/hltv-bot) (\`${p.id || "?"}\`)`
-              )
-              .join("\n")}`,
+            ?.map(
+              (p) =>
+                `[${p.name}](https://www.hltv.org/players/${p.id}/hltv-bot) (\`${p.id || "?"}\`)`
+            )
+            .join("\n")}`,
         inline: true
       },
       {
@@ -157,15 +158,14 @@ function embed(match: FullMatch) {
       },
       {
         name: `${match.team2?.name || "?"}`,
-        value: `ID: [\`${match.team2?.id || "?"}\`](https://www.hltv.org/team/${
-          match.team2?.id
-        }/hltv-bot)
+        value: `ID: [\`${match.team2?.id || "?"}\`](https://www.hltv.org/team/${match.team2?.id
+          }/hltv-bot)
             ${match.players.team2
-              ?.map(
-                (p) =>
-                  `[${p.name}](https://www.hltv.org/players/${p.id}/hltv-bot) (\`${p.id || "?"}\`)`
-              )
-              .join("\n")}`,
+            ?.map(
+              (p) =>
+                `[${p.name}](https://www.hltv.org/players/${p.id}/hltv-bot) (\`${p.id || "?"}\`)`
+            )
+            .join("\n")}`,
         inline: true
       },
       {
@@ -184,7 +184,8 @@ function collector(
   msg: Message<boolean>,
   interaction: CommandInteraction,
   filter: (int: MessageComponentInteraction) => boolean,
-  match: FullMatch | null
+  match: FullMatch | null,
+  components: any[]
 ) {
   msg
     .createMessageComponentCollector({ filter, idle: 3e4 })
@@ -250,8 +251,7 @@ function collector(
         const maps = match?.maps
           .map(
             (m, i) =>
-              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${
-                m.result?.team1TotalRounds || 0
+              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${m.result?.team1TotalRounds || 0
               } - ${m.result?.team2TotalRounds || 0}** ${match?.team2?.name}`
           )
           .join("\n");
@@ -285,6 +285,9 @@ function collector(
       }
     })
     .on("end", () => {
-      interaction.editReply({ content: "Timed Out", components: [] });
+      components.forEach(row => {
+        row.components.forEach((b: any) => b.disabled = true)
+      });
+      interaction.editReply({ components });
     });
 }

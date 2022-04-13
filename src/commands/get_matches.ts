@@ -84,12 +84,12 @@ module.exports = async (
   const msg = i as Message;
   const cfilter = (int: MessageComponentInteraction) => int.message.id == i.id;
   msg
-    .createMessageComponentCollector({ filter: cfilter, idle: 3e4 })
+    .createMessageComponentCollector({ filter: cfilter, idle: 3e4, maxComponents: 1 })
     .on("collect", async (int) => {
       if (!int.isSelectMenu()) return;
-      require("./get_match")(int, null, int.values[0], true);
+      require("./get_match")(int, null, interaction, i);
     })
-    .on("end", () => {
-      interaction.editReply({ content: "Timed out", components: [] });
+    .on("end", (_, r) => {
+      if(r === 'idle') interaction.editReply({ content: "Timed out.", components: [] });
     });
 };
