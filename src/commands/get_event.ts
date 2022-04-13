@@ -16,20 +16,22 @@
 import { FullEvent, HLTV } from "hltv";
 import {
   CacheType,
+  Client,
   CommandInteraction,
   Message,
   MessageComponentInteraction,
-  Client
+  SelectMenuInteraction,
 } from "discord.js";
 import { get, set } from "../cache";
 module.exports = async (
-  interaction: CommandInteraction,
+  interaction: CommandInteraction | SelectMenuInteraction,
   _client: Client,
-  id: number,
-  ephemeral: boolean
+  originalInt: CommandInteraction,
+  i: any
 ) => {
-  const i = await interaction.deferReply({ fetchReply: true, ephemeral });
-  if (!id) id = interaction.options.getInteger("event_id", true);
+  if(!i) i = await interaction.deferReply({ fetchReply: true });
+
+  const id = interaction.isSelectMenu() ? parseInt(interaction.values[0]) : interaction.options.getInteger("event_id") || 0;
 
   let event: FullEvent | null = get(id);
   if (!event)
@@ -41,7 +43,52 @@ module.exports = async (
       .catch(() => null);
   if (!event) return interaction.editReply("❌ Invalid Event ID");
 
-  await interaction.editReply({
+  const components = [
+    {
+      type: "ACTION_ROW",
+      components: [
+        {
+          type: "BUTTON",
+          label: "News",
+          customId: "news",
+          style: "PRIMARY",
+          disabled: event.news.length === 0
+        },
+        {
+          type: "BUTTON",
+          label: "Highlights",
+          customId: "highlights",
+          style: "PRIMARY",
+          disabled: event.highlights.length === 0
+        },
+        {
+          type: "BUTTON",
+          label: "Teams",
+          customId: "teams",
+          style: "PRIMARY",
+          disabled: event.teams.length === 0
+        }
+      ]
+    },
+    {
+      type: "ACTION_ROW",
+      components: [
+        {
+          type: "BUTTON",
+          label: "Matches",
+          customId: "matches",
+          style: "PRIMARY"
+        },
+        {
+          type: "BUTTON",
+          label: "Results",
+          customId: "results",
+          style: "PRIMARY"
+        }
+      ]
+    }
+  ]
+  const res: any = {
     embeds: [
       {
         title: event.name,
@@ -75,63 +122,22 @@ module.exports = async (
         ]
       }
     ],
-    components: [
-      {
-        type: "ACTION_ROW",
-        components: [
-          {
-            type: "BUTTON",
-            label: "News",
-            customId: "news",
-            style: "PRIMARY",
-            disabled: event.news.length === 0
-          },
-          {
-            type: "BUTTON",
-            label: "Highlights",
-            customId: "highlights",
-            style: "PRIMARY",
-            disabled: event.highlights.length === 0
-          },
-          {
-            type: "BUTTON",
-            label: "Teams",
-            customId: "teams",
-            style: "PRIMARY",
-            disabled: event.teams.length === 0
-          }
-        ]
-      },
-      {
-        type: "ACTION_ROW",
-        components: [
-          {
-            type: "BUTTON",
-            label: "Matches",
-            customId: "matches",
-            style: "PRIMARY"
-          },
-          {
-            type: "BUTTON",
-            label: "Results",
-            customId: "results",
-            style: "PRIMARY"
-          }
-        ]
-      }
-    ]
-  });
+    components
+  }
 
-  const msg = i as Message;
+  if (interaction.isSelectMenu()) await interaction.update(res)
+  else await interaction.editReply(res);
+
   const filter = (int: MessageComponentInteraction) => int.message.id == i.id;
-  collector(msg, filter, event, interaction);
+  collector(i, filter, event, originalInt, components);
 };
 
 function collector(
   msg: Message<boolean>,
   filter: (int: MessageComponentInteraction) => boolean,
   event: FullEvent | null,
-  interaction: CommandInteraction<CacheType>
+  interaction: CommandInteraction,
+  components: any[]
 ) {
   msg
     .createMessageComponentCollector({ filter, idle: 3e4 })
@@ -143,7 +149,10 @@ function collector(
       else if (c.customId == "results") return require("./get_results")(c, null, event?.id, true);
     })
     .on("end", () => {
-      interaction.editReply({ components: [] });
+      components.forEach(row => {
+        row.components.forEach((b: any) => b.disabled = true)
+      });
+      interaction.editReply({ components });
     });
 }
 async function highlightsResponse(
@@ -185,8 +194,7 @@ function teamsReponse(c: MessageComponentInteraction<CacheType>, event: FullEven
         description: `${event?.teams
           .map(
             (n) =>
-              `\`#${n.rankDuringEvent || "?"}\` [${n.name}](https://hltv.org/team/${
-                n.id
+              `\`#${n.rankDuringEvent || "?"}\` [${n.name}](https://hltv.org/team/${n.id
               }/hltv-bot) | ${n.reasonForParticipation}`
           )
           .join("\n")}`

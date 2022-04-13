@@ -80,21 +80,22 @@ module.exports = async (interaction: CommandInteraction) => {
   });
 
   const msg = i as Message;
-  const filter = (int: MessageComponentInteraction) => int.message.id == i.id;
-  collector(msg, filter, interaction);
+  const filter = (int: MessageComponentInteraction) => int.message.id == i.id && int.user.id === interaction.user.id;
+  collector(msg, filter, interaction, i);
 };
 
 function collector(
   msg: Message<boolean>,
   filter: (int: MessageComponentInteraction) => boolean,
-  interaction: CommandInteraction<CacheType>
+  interaction: CommandInteraction<CacheType>,
+  i: any
 ) {
   msg
-    .createMessageComponentCollector({ filter, idle: 6e4 })
+    .createMessageComponentCollector({ filter, idle: 5000, maxComponents: 1 })
     .on("collect", (c) => {
-      if (c.isSelectMenu()) return require("./get_event")(c, null, parseInt(c.values[0]), true);
+      if (c.isSelectMenu()) return require("./get_event")(c, null, interaction, i);
     })
-    .on("end", () => {
-      interaction.editReply({ content: "Timed out.", components: [] });
+    .on("end", (_, r) => {
+      if(r === 'idle') interaction.editReply({ content: "Timed out.", components: [] });
     });
 }
