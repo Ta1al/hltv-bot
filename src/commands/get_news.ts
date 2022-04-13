@@ -52,7 +52,7 @@ module.exports = async (
             customId: "news",
             placeholder: "Select news",
             options: news.map((n, i) => ({
-              label: n.title,
+              label: n.title.slice(0, 100),
               description: n.country.name,
               value: `${i}`
             }))
