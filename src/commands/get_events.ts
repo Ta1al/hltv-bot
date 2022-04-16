@@ -91,7 +91,7 @@ function collector(
   i: any
 ) {
   msg
-    .createMessageComponentCollector({ filter, idle: 5000, maxComponents: 1 })
+    .createMessageComponentCollector({ filter, idle: 3e4, maxComponents: 1 })
     .on("collect", (c) => {
       if (c.isSelectMenu()) return require("./get_event")(c, null, interaction, i);
     })
