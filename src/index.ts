@@ -1,4 +1,4 @@
-import { Client, CommandInteraction, Intents } from "discord.js";
+import { Client, Intents } from "discord.js";
 const { TOKEN } = process.env;
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
