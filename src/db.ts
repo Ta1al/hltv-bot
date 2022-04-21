@@ -17,4 +17,4 @@ export const set = async (name: string, eol: number, value: any) => {
   return await db.updateOne({ name }, { $set: { eol, value } }, { upsert: true });
 };
 
-setInterval(() => db.deleteMany({ eol: { $lt: new Date().getTime() } }).then(console.log), 10e3);
+setInterval(() => db.deleteMany({ eol: { $lt: new Date().getTime() } }), 60e3);
