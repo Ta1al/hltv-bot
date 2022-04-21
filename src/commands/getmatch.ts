@@ -21,7 +21,9 @@ const message = async (interaction: CommandInteraction) => {
   return interaction.editReply(msg);
 };
 
-const component = (interaction: MessageComponentInteraction) => { };
+const component = (interaction: MessageComponentInteraction) => {
+  // TODO
+};
 
 module.exports = { message, component };
 
@@ -33,10 +35,11 @@ function createMessage(match: FullMatch): WebhookEditMessageOptions {
 
 function createEmbed(match: FullMatch): MessageEmbed {
   const players = (id: number | undefined, team: Player[]) => {
-    return `ID: [\`${id || "?"}\`](https://www.hltv.org/team/${id}/hltv-bot)
+    return `Team ID: [\`${id || "?"}\`](https://www.hltv.org/team/${id}/hltv-bot)
+    **Players:**
     ${team
-        .map(p => `[${p.name}](https://www.hltv.org/players/${p.id}/hltv-bot) (\`${p.id || "?"}\`)`)
-        .join("\n")}`;
+      .map(p => `${p.name} [\`${p.id}\`](https://www.hltv.org/player/${p.id}/hltv-bot)`)
+      .join("\n")}`;
   };
   const embed = new MessageEmbed()
     .setColor("#2f3136")
@@ -57,7 +60,7 @@ function createEmbed(match: FullMatch): MessageEmbed {
 function createComponents(match: FullMatch): MessageActionRow[] {
   const components: MessageActionRow[] = [];
 
-  const str = `getMatch ${match.id}`;
+  const str = `getmatch ${match.id}`;
   const button = (
     customId: string,
     label: string,
