@@ -6,7 +6,7 @@ const schema = new Schema({
   value: {},
 })
 
-const db = model("db", schema);
+export const db = model("db", schema);
 
 export const get = async (name: string) => {
   const doc = await db.findOne({ name });
