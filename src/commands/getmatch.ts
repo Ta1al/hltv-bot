@@ -1,9 +1,9 @@
 import {
+  ButtonInteraction,
   CommandInteraction,
   MessageActionRow,
   MessageButton,
   MessageButtonStyleResolvable,
-  MessageComponentInteraction,
   MessageEmbed,
   WebhookEditMessageOptions,
 } from "discord.js";
@@ -21,11 +21,64 @@ const message = async (interaction: CommandInteraction) => {
   return interaction.editReply(msg);
 };
 
-const component = (interaction: MessageComponentInteraction) => {
-  // TODO
+const component = async (interaction: ButtonInteraction) => {
+  await interaction.deferReply({ ephemeral: true });
+  const args = interaction.customId.split(" "),
+    id = parseInt(args[1]),
+    label = args[2],
+    match = await getMatch(id);
+  if (!match) return;
+
+  if (label === "live") return interaction.editReply("not implemented");
+  if (label === "stats") return interaction.editReply("not implemented");
+  if (["streams", "highlights", "demos"].includes(label)) {
+    const embeds = [
+      createButtonEmbed(
+        label.toUpperCase(),
+        createUrlDescription(match[label as "streams" | "highlights" | "demos"])
+      ),
+    ];
+    return interaction.editReply({ embeds });
+  }
+  if (label === "result") {
+    const embeds = [
+      createButtonEmbed(
+        "RESULT",
+        `${match.team1?.name} ${match.score.team1} - ${match.score.team2} ${match.team2?.name}`
+      ),
+    ];
+    const pom = match.playerOfTheMatch;
+    embeds[0].addFields([
+      {
+        name: "Player of the Match",
+        value: `${pom?.name} [\`${pom?.id}\`](https://www.hltv.org/player/${pom?.id}/hltv-bot)`,
+        inline: true,
+      },
+      {
+        name: "Maps",
+        value: match.maps
+          .map(
+            (m, i) =>
+              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${m.result?.team1TotalRounds || 0
+              } - ${m.result?.team2TotalRounds || 0}** ${match?.team2?.name}`
+          )
+          .join("\n"),
+      },
+      {
+        name: "Vetoes",
+        value: match.vetoes
+          .map((v, i) => `\`${i + 1}.\` ${v.team?.name || ""} ${v.type} *${v.map}*`)
+          .join("\n"),
+      },
+    ]);
+
+    return interaction.editReply({ embeds });
+  }
 };
 
 module.exports = { message, component };
+
+// ============================================================
 
 function createMessage(match: FullMatch): WebhookEditMessageOptions {
   const embed = createEmbed(match);
@@ -38,8 +91,8 @@ function createEmbed(match: FullMatch): MessageEmbed {
     return `Team ID: [\`${id || "?"}\`](https://www.hltv.org/team/${id}/hltv-bot)
     **Players:**
     ${team
-      .map(p => `${p.name} [\`${p.id}\`](https://www.hltv.org/player/${p.id}/hltv-bot)`)
-      .join("\n")}`;
+        .map(p => `${p.name} [\`${p.id}\`](https://www.hltv.org/player/${p.id}/hltv-bot)`)
+        .join("\n")}`;
   };
   const embed = new MessageEmbed()
     .setColor("#2f3136")
@@ -75,7 +128,7 @@ function createComponents(match: FullMatch): MessageActionRow[] {
   );
   if (match.status === "Live") {
     firstRow.addComponents(
-      button(`${str} score`, "Live Score").setDisabled(!match.hasScorebot),
+      button(`${str} live`, "Live Score").setDisabled(!match.hasScorebot),
       button(`${str} streams`, "Streams").setDisabled(!match.streams.length)
     );
   } else if (match.status === "Over") {
@@ -85,10 +138,7 @@ function createComponents(match: FullMatch): MessageActionRow[] {
     );
 
     secondRow = new MessageActionRow().addComponents(
-      button(`${str} winner`, "Winner", "SUCCESS"),
-      button(`${str} pom`, "Player of the Match"),
-      button(`${str} maps`, "Maps"),
-      button(`${str} veto`, "Vetoes"),
+      button(`${str} result`, "Result", "SUCCESS"),
       button(`${str} stats`, "Stats")
     );
   }
@@ -98,18 +148,35 @@ function createComponents(match: FullMatch): MessageActionRow[] {
   return components;
 }
 
+// ============================================================
+
+function createButtonEmbed(title: string, description: string): MessageEmbed {
+  const embed = new MessageEmbed().setTitle(title).setDescription(description).setColor("#2f3136");
+  return embed;
+}
+
+function createUrlDescription(arr: any[]): string {
+  return arr
+    .map((s, i) => {
+      if (!s.link.startsWith("http")) s.link = "https://hltv.org" + s.link;
+      return `\`${i + 1}.\` [${s.name || s.title}](${s.link})`;
+    })
+    .join("\n")
+    .slice(0, 4000);
+}
+
+// ============================================================
+
 async function getMatch(id: number): Promise<FullMatch | null> {
   let match = await get(`${id}`);
   if (!match) {
     match = await hltv
       .getMatch({ id })
       .then(m => {
-        let life: number = 60e3;
-        if (m.date) {
-          const now = new Date().getTime();
-          const diff = m.date - now;
-          life = Math.max(diff, life);
-        }
+        let life = 60e3;
+        const now = new Date().getTime();
+        if (["Scheduled", "Postponed"].includes(m.status)) life = (m.date || now) - now;
+        if (m.status === "Over") life = 864e5;
         set(`${id}`, life, m);
         return m;
       })
