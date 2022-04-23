@@ -5,6 +5,7 @@ import {
   MessageActionRow,
   MessageButton,
   MessageButtonStyleResolvable,
+  MessageComponentInteraction,
   MessageEmbed,
   WebhookEditMessageOptions,
 } from "discord.js";
@@ -60,7 +61,8 @@ const component = async (interaction: ButtonInteraction) => {
         value: match.maps
           .map(
             (m, i) =>
-              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${m.result?.team1TotalRounds || 0
+              `\`${i + 1}.\` ${m.name} | ${match?.team1?.name} **${
+                m.result?.team1TotalRounds || 0
               } - ${m.result?.team2TotalRounds || 0}** ${match?.team2?.name}`
           )
           .join("\n"),
@@ -77,19 +79,31 @@ const component = async (interaction: ButtonInteraction) => {
   }
 };
 
-module.exports = { message, component };
+const update = async (interaction: MessageComponentInteraction, id: number) => {
+  const i = await interaction.deferUpdate({ fetchReply: true });
+  const match = await getMatch(id);
+  if (!match) return interaction.editReply("❌ Match not found");
+
+  idleCollector(i as Message, match, interaction);
+  return interaction.editReply(createMessage(match));
+};
+
+module.exports = { message, component, update };
 
 // ============================================================
 
-function idleCollector(i: Message, match: FullMatch, interaction: CommandInteraction) {
+function idleCollector(
+  i: Message,
+  match: FullMatch,
+  interaction: CommandInteraction | MessageComponentInteraction
+) {
   const msg = i as Message;
-  msg.createMessageComponentCollector({ idle: 30e3 })
-    .on('end', () => {
-      const components = createComponents(match);
-      components.forEach(c => c.components.forEach(b => b.disabled = true));
-      
-      interaction.editReply({ components });
-    });
+  msg.createMessageComponentCollector({ idle: 30e3 }).on("end", () => {
+    const components = createComponents(match);
+    components.forEach(c => c.components.forEach(b => (b.disabled = true)));
+
+    interaction.editReply({ components });
+  });
 }
 
 // ============================================================
@@ -105,8 +119,8 @@ function createEmbed(match: FullMatch): MessageEmbed {
     return `Team ID: [\`${id || "?"}\`](https://www.hltv.org/team/${id}/hltv-bot)
     **Players:**
     ${team
-        .map(p => `${p.name} [\`${p.id}\`](https://www.hltv.org/player/${p.id}/hltv-bot)`)
-        .join("\n")}`;
+      .map(p => `${p.name} [\`${p.id}\`](https://www.hltv.org/player/${p.id}/hltv-bot)`)
+      .join("\n")}`;
   };
   const embed = new MessageEmbed()
     .setColor("#2f3136")
