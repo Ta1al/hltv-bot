@@ -1,6 +1,7 @@
 import {
   ButtonInteraction,
   CommandInteraction,
+  Message,
   MessageActionRow,
   MessageButton,
   MessageButtonStyleResolvable,
@@ -12,13 +13,13 @@ import hltv, { Player } from "hltv";
 import { FullMatch } from "hltv/lib/endpoints/getMatch";
 
 const message = async (interaction: CommandInteraction) => {
-  await interaction.deferReply();
+  const i = await interaction.deferReply({ fetchReply: true });
   const id = interaction.options.getInteger("match_id", true);
   const match = await getMatch(id);
   if (!match) return interaction.editReply("❌ Match not found");
 
-  const msg = createMessage(match);
-  return interaction.editReply(msg);
+  idleCollector(i as Message, match, interaction);
+  return interaction.editReply(createMessage(match));
 };
 
 const component = async (interaction: ButtonInteraction) => {
@@ -77,6 +78,19 @@ const component = async (interaction: ButtonInteraction) => {
 };
 
 module.exports = { message, component };
+
+// ============================================================
+
+function idleCollector(i: Message, match: FullMatch, interaction: CommandInteraction) {
+  const msg = i as Message;
+  msg.createMessageComponentCollector({ idle: 30e3 })
+    .on('end', () => {
+      const components = createComponents(match);
+      components.forEach(c => c.components.forEach(b => b.disabled = true));
+      
+      interaction.editReply({ components });
+    });
+}
 
 // ============================================================
 
