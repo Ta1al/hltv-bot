@@ -17,10 +17,11 @@ const message = async (interaction: CommandInteraction) => {
   if (!matches.length) return interaction.editReply("❌ Could not find matches");
 
   idleCollector(i as Message, interaction);
-  return interaction.editReply(createMessage(matches));
+  return interaction.editReply(createMessage(matches, interaction.user.id));
 };
 
 const component = async (interaction: SelectMenuInteraction) => {
+  if (interaction.user.id !== interaction.customId.split(" ")[1]) return;
   return require('./getmatch').update(interaction, parseInt(interaction.values[0]));
 };
 
@@ -36,16 +37,16 @@ function idleCollector(i: Message, interaction: CommandInteraction) {
 
 // ============================================================
 
-function createMessage(matches: MatchPreview[]): WebhookEditMessageOptions {
-  const components = createComponents(matches);
+function createMessage(matches: MatchPreview[], userId: string): WebhookEditMessageOptions {
+  const components = createComponents(matches, userId);
   return { components };
 }
 
-function createComponents(matches: MatchPreview[]): MessageActionRow[] {
+function createComponents(matches: MatchPreview[], userId: string): MessageActionRow[] {
   const components = [
     new MessageActionRow().addComponents(
       new MessageSelectMenu({
-        custom_id: "getmatches",
+        custom_id: `getmatches ${userId}`,
         placeholder: "Select a match",
         options: matches.map((m: MatchPreview) => ({
           label: `${m.team1?.name || "TBD"} vs ${m.team2?.name || "TBD"}`,
