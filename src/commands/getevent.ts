@@ -24,10 +24,34 @@ const message = async (interaction: CommandInteraction) => {
 };
 
 const component = async (interaction: ButtonInteraction) => {
-  // TODO
-}
+  const eventId = interaction.customId.split(" ")[1],
+    label = interaction.customId.split(" ")[2],
+    event = await getEvent(Number(eventId));
 
-module.exports = { message };
+  if (label == "news") {
+    return interaction.reply({
+      ephemeral: true,
+      embeds: [
+        {
+          title: `News Articles for ${event?.name}`,
+          color: 0x2f3136,
+          description: event?.news
+            .map((n, i) => {
+              const emoji = i % 2 ? "🔸" : "🔹",
+              link = n.link.split("/");
+              link.pop()
+
+              return `${emoji} [${n.name}](https://hltv.org${link.join('/')}/hltv-bot)`;
+            })
+            .join("\n")
+            .slice(0, 4000),
+        },
+      ],
+    });
+  }
+};
+
+module.exports = { message, component };
 
 // ============================================================
 
