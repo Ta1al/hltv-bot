@@ -9,7 +9,7 @@ import {
   MessageEmbed,
   WebhookEditMessageOptions,
 } from "discord.js";
-import HLTV, { FullEvent } from "hltv";
+import HLTV, { Article, FullEvent, FullEventHighlight } from "hltv";
 import { get, set } from "../db";
 
 const message = async (interaction: CommandInteraction) => {
@@ -28,23 +28,15 @@ const component = async (interaction: ButtonInteraction) => {
     label = interaction.customId.split(" ")[2],
     event = await getEvent(Number(eventId));
 
-  if (label == "news") {
+  if (["news", "highlights"].includes(label)) {
+    if(!event) return;
     return interaction.reply({
       ephemeral: true,
       embeds: [
         {
-          title: `News Articles for ${event?.name}`,
+          title: `${label.toUpperCase()} for ${event?.name}`,
           color: 0x2f3136,
-          description: event?.news
-            .map((n, i) => {
-              const emoji = i % 2 ? "🔸" : "🔹",
-              link = n.link.split("/");
-              link.pop()
-
-              return `${emoji} [${n.name}](https://hltv.org${link.join('/')}/hltv-bot)`;
-            })
-            .join("\n")
-            .slice(0, 4000),
+          description: createDescription(event[label as "highlights" | "news"]),
         },
       ],
     });
@@ -137,6 +129,28 @@ function createComponents(event: FullEvent): MessageActionRow[] {
   components.push(firstRow, secondRow);
 
   return components;
+}
+
+// ============================================================
+
+function createDescription(arr: Article[] | FullEventHighlight[] | undefined): string  {
+  if(!arr) return '';
+  return arr
+    .map((n, i) => {
+      const emoji = i % 2 ? "🔸" : "🔹";
+      const link = n.link.startsWith('/') ? newsLink(n.link) : n.link;
+      const str = `${emoji} [${n.name}](${link})`;
+
+      return str;
+
+      function newsLink(link: any) {
+        link = n.link.split("/");
+        link.pop();
+        return `https://hltv.org${link.join('/')}/hltv-bot`;
+      }
+    })
+    .join("\n")
+    .slice(0, 4000);
 }
 
 // ============================================================
