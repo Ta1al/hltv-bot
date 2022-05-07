@@ -196,7 +196,7 @@ function createUrlDescription(arr: any[]): string {
 // ============================================================
 
 async function getMatch(id: number): Promise<FullMatch | null> {
-  let match = await get(`${id}`);
+  let match = await get(`match_${id}`);
   if (!match) {
     match = await hltv
       .getMatch({ id })
@@ -205,7 +205,7 @@ async function getMatch(id: number): Promise<FullMatch | null> {
         const now = new Date().getTime();
         if (["Scheduled", "Postponed"].includes(m.status)) life = (m.date || now) - now;
         if (m.status === "Over") life = 864e5;
-        set(`${id}`, life, m);
+        set(`match_${id}`, life, m);
         return m;
       })
       .catch(() => null);

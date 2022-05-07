@@ -156,11 +156,11 @@ function createDescription(arr: Article[] | FullEventHighlight[] | undefined): s
 // ============================================================
 
 async function getEvent(id: number): Promise<FullEvent | null> {
-  let event: FullEvent | null = await get(`${id}`);
+  let event: FullEvent | null = await get(`event_${id}`);
   if (!event)
     event = await HLTV.getEvent({ id })
       .then(e => {
-        set(`${id}`, 36e5, e); // 1 hour
+        set(`event_${id}`, 36e5, e); // 1 hour
         return e;
       })
       .catch(() => null);
