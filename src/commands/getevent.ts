@@ -9,7 +9,8 @@ import {
   MessageEmbed,
   WebhookEditMessageOptions,
 } from "discord.js";
-import HLTV, { Article, FullEvent, FullEventHighlight } from "hltv";
+import HLTV, { Article, FullEvent, FullEventHighlight, FullEventTeam } from "hltv";
+import { format } from "util";
 import { get, set } from "../db";
 
 const message = async (interaction: CommandInteraction) => {
@@ -24,14 +25,14 @@ const message = async (interaction: CommandInteraction) => {
 };
 
 const component = async (interaction: ButtonInteraction) => {
+  await interaction.deferReply({ ephemeral: true });
   const eventId = interaction.customId.split(" ")[1],
     label = interaction.customId.split(" ")[2],
     event = await getEvent(Number(eventId));
 
   if (["news", "highlights"].includes(label)) {
-    if(!event) return;
-    return interaction.reply({
-      ephemeral: true,
+    if (!event) return;
+    return interaction.editReply({
       embeds: [
         {
           title: `${label.toUpperCase()} for ${event?.name}`,
@@ -39,6 +40,19 @@ const component = async (interaction: ButtonInteraction) => {
           description: createDescription(event[label as "highlights" | "news"]),
         },
       ],
+    });
+  }
+
+  if (label == "teams") {
+    if (!event) return;
+    const format = (t: FullEventTeam) => {
+      const name = t.id ? `[${t.name}](<https://hltv.org/team/${t.id}/hltv-bot>)` : t.name,
+        rank = t.rankDuringEvent ?? "?",
+        reason = t.reasonForParticipation ?? "";
+      return `\`#${rank}\`. ${name} ${reason}`;
+    };
+    interaction.editReply({
+      content: event.teams.map(t => format(t)).join("\n"),
     });
   }
 };
@@ -133,12 +147,12 @@ function createComponents(event: FullEvent): MessageActionRow[] {
 
 // ============================================================
 
-function createDescription(arr: Article[] | FullEventHighlight[] | undefined): string  {
-  if(!arr) return '';
+function createDescription(arr: Article[] | FullEventHighlight[] | undefined): string {
+  if (!arr) return "";
   return arr
     .map((n, i) => {
       const emoji = i % 2 ? "🔸" : "🔹";
-      const link = n.link.startsWith('/') ? newsLink(n.link) : n.link;
+      const link = n.link.startsWith("/") ? newsLink(n.link) : n.link;
       const str = `${emoji} [${n.name}](${link})`;
 
       return str;
@@ -146,7 +160,7 @@ function createDescription(arr: Article[] | FullEventHighlight[] | undefined): s
       function newsLink(link: any) {
         link = n.link.split("/");
         link.pop();
-        return `https://hltv.org${link.join('/')}/hltv-bot`;
+        return `https://hltv.org${link.join("/")}/hltv-bot`;
       }
     })
     .join("\n")
