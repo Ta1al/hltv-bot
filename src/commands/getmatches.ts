@@ -1,4 +1,5 @@
 import {
+  ButtonInteraction,
   CommandInteraction,
   Message,
   MessageActionRow,
@@ -25,13 +26,26 @@ const component = async (interaction: SelectMenuInteraction) => {
   return require('./getmatch').update(interaction, parseInt(interaction.values[0]));
 };
 
-module.exports = { message, component };
+const update = async (interaction: ButtonInteraction, eventId: number) => {
+  const i = await interaction.deferUpdate({ fetchReply: true });
+
+  let matches: MatchPreview[] = await getMatches(eventId);
+  if (!matches.length) return interaction.editReply("❌ Could not find matches");
+  
+  idleCollector(i as Message, interaction);
+  return interaction.editReply(createMessage(matches, interaction.user.id));
+}
+
+module.exports = { message, component, update };
 
 // ============================================================
 
-function idleCollector(i: Message, interaction: CommandInteraction) {
+function idleCollector(i: Message, interaction: CommandInteraction | ButtonInteraction) {
   i.createMessageComponentCollector({ max: 1, idle: 30e3 }).on('end', (_, r) => {
-    if (r === 'idle') interaction.editReply({ content: "⏰ Timed out", components: [] });
+    if (r === 'idle') {
+      const res = { content: "⏰ Timed out", components: [] };
+      interaction.editReply(res);
+    }
   })
 }
 
@@ -61,7 +75,7 @@ function createComponents(matches: MatchPreview[], userId: string): MessageActio
 
 // ============================================================
 
-async function getMatches(eventId: number | null, filter: MatchFilter) {
+async function getMatches(eventId: number | null, filter: MatchFilter | undefined = undefined) {
   let matches: any[] = [];
   if (!eventId && !filter) matches = await get("matches");
   if (eventId && !filter) matches = await get(`matches_${eventId}`);
