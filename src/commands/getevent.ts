@@ -21,14 +21,17 @@ const message = async (interaction: CommandInteraction) => {
   if (!event) return interaction.editReply("❌ Event not found");
 
   idleCollector(i as Message, event, interaction);
-  return interaction.editReply(createMessage(event));
+  return interaction.editReply(createMessage(event, interaction.user.id));
 };
 
 const component = async (interaction: ButtonInteraction) => {
-  await interaction.deferReply({ ephemeral: true });
   const eventId = interaction.customId.split(" ")[1],
-    label = interaction.customId.split(" ")[2],
-    event = await getEvent(Number(eventId));
+    userId = interaction.customId.split(" ")[2],
+    label = interaction.customId.split(" ")[3];
+
+  if (["news", "highlights", "teams"].includes(label)) await interaction.deferReply({ ephemeral: true });
+
+  const event = await getEvent(Number(eventId));
 
   if (["news", "highlights"].includes(label)) {
     if (!event) return;
@@ -55,6 +58,12 @@ const component = async (interaction: ButtonInteraction) => {
       content: event.teams.map(t => format(t)).join("\n"),
     });
   }
+
+  if (label == "matches") {
+    if (interaction.user.id !== userId) return;
+    if (!event) return;
+    require('./getmatches').update(interaction, event.id);
+  }
 };
 
 module.exports = { message, component };
@@ -68,7 +77,7 @@ function idleCollector(
 ) {
   const msg = i as Message;
   msg.createMessageComponentCollector({ idle: 30e3 }).on("end", () => {
-    const components = createComponents(event);
+    const components = createComponents(event, interaction.user.id);
     components.forEach(c => c.components.forEach(b => (b.disabled = true)));
 
     interaction.editReply({ components });
@@ -77,9 +86,9 @@ function idleCollector(
 
 // ============================================================
 
-function createMessage(event: FullEvent): WebhookEditMessageOptions {
+function createMessage(event: FullEvent, userId: string): WebhookEditMessageOptions {
   const embeds = [createEmbed(event)];
-  const components = createComponents(event);
+  const components = createComponents(event, userId);
 
   return { embeds, components };
 }
@@ -117,10 +126,10 @@ function createEmbed(event: FullEvent): MessageEmbed {
     ]);
 }
 
-function createComponents(event: FullEvent): MessageActionRow[] {
+function createComponents(event: FullEvent, userId: string): MessageActionRow[] {
   const components: MessageActionRow[] = [];
 
-  const str = `getevent ${event.id}`;
+  const str = `getevent ${event.id} ${userId}`;
   const button = (
     customId: string,
     label: string,
